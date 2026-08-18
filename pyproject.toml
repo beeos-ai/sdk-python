@@ -1,6 +1,6 @@
 [project]
 name = "beeos-sdk"
-version = "0.5.0"
+version = "0.6.0"
 description = "BeeOS OpenAPI (user contract)"
 authors = [
   {name = "OpenAPI Generator Community",email = "team@openapitools.org"},

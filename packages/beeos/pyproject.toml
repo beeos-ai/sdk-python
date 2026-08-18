@@ -1,0 +1,28 @@
+[project]
+name = "beeos"
+version = "0.1.0"
+description = "Official BeeOS Python package"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [
+  {name = "BeeOS", email = "support@beeos.ai"},
+]
+keywords = ["BeeOS", "agents", "OpenAPI", "SDK"]
+dependencies = [
+  "beeos-sdk>=0.4.0,<1.0.0",
+]
+
+[project.urls]
+Documentation = "https://docs.beeos.ai"
+Repository = "https://github.com/beeos-ai/sdk-python"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+beeos = ["py.typed"]

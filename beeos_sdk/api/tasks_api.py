@@ -3590,7 +3590,7 @@ class TasksApi:
     ) -> TaskWebhookResponse:
         """Register a webhook callback for terminal task events.
 
-        Subscribes a caller-supplied HTTPS endpoint to receive POST callbacks when the task reaches a terminal state (`succeeded` / `failed` / `canceled` / `timeout` / `rejected`). Idempotent on `(task_id, url)` — re-registering the same URL updates the token.  Implementation note: openapi-gateway is zero-DB; the underlying subscription is stored by A2A Service in its `webhooks` table. The webhook fires regardless of which protocol created the task (OpenAPI / A2A / MCP) — same row, different `protocol_filter`. 
+        Subscribes a caller-supplied HTTPS endpoint to receive POST callbacks when the task reaches a terminal state (`completed` / `failed` / `canceled` / `timeout` / `rejected`). Idempotent on `(task_id, url)` — re-registering the same URL updates the token.  Implementation note: openapi-gateway is zero-DB; the underlying subscription is stored by A2A Service in its `webhooks` table. The webhook fires regardless of which protocol created the task (OpenAPI / A2A / MCP) — same row, different `protocol_filter`. 
 
         :param agent_id: (required)
         :type agent_id: str
@@ -3671,7 +3671,7 @@ class TasksApi:
     ) -> ApiResponse[TaskWebhookResponse]:
         """Register a webhook callback for terminal task events.
 
-        Subscribes a caller-supplied HTTPS endpoint to receive POST callbacks when the task reaches a terminal state (`succeeded` / `failed` / `canceled` / `timeout` / `rejected`). Idempotent on `(task_id, url)` — re-registering the same URL updates the token.  Implementation note: openapi-gateway is zero-DB; the underlying subscription is stored by A2A Service in its `webhooks` table. The webhook fires regardless of which protocol created the task (OpenAPI / A2A / MCP) — same row, different `protocol_filter`. 
+        Subscribes a caller-supplied HTTPS endpoint to receive POST callbacks when the task reaches a terminal state (`completed` / `failed` / `canceled` / `timeout` / `rejected`). Idempotent on `(task_id, url)` — re-registering the same URL updates the token.  Implementation note: openapi-gateway is zero-DB; the underlying subscription is stored by A2A Service in its `webhooks` table. The webhook fires regardless of which protocol created the task (OpenAPI / A2A / MCP) — same row, different `protocol_filter`. 
 
         :param agent_id: (required)
         :type agent_id: str
@@ -3752,7 +3752,7 @@ class TasksApi:
     ) -> RESTResponseType:
         """Register a webhook callback for terminal task events.
 
-        Subscribes a caller-supplied HTTPS endpoint to receive POST callbacks when the task reaches a terminal state (`succeeded` / `failed` / `canceled` / `timeout` / `rejected`). Idempotent on `(task_id, url)` — re-registering the same URL updates the token.  Implementation note: openapi-gateway is zero-DB; the underlying subscription is stored by A2A Service in its `webhooks` table. The webhook fires regardless of which protocol created the task (OpenAPI / A2A / MCP) — same row, different `protocol_filter`. 
+        Subscribes a caller-supplied HTTPS endpoint to receive POST callbacks when the task reaches a terminal state (`completed` / `failed` / `canceled` / `timeout` / `rejected`). Idempotent on `(task_id, url)` — re-registering the same URL updates the token.  Implementation note: openapi-gateway is zero-DB; the underlying subscription is stored by A2A Service in its `webhooks` table. The webhook fires regardless of which protocol created the task (OpenAPI / A2A / MCP) — same row, different `protocol_filter`. 
 
         :param agent_id: (required)
         :type agent_id: str

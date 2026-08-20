@@ -20,7 +20,7 @@ from typing_extensions import Self
 
 class TaskStatus(str, Enum):
     """
-    Canonical task lifecycle status. Aligned with Google A2A v1.0 + BeeOS extensions per ADR-0017 D2. Internal `msgderive.TaskStatus` names map 1:1 onto these wire values.  Non-terminal: `queued`, `running`, `input_required`, `auth_required`. Terminal: `succeeded`, `failed`, `canceled`, `timeout`, `rejected`.  State transitions: ``` queued → running → succeeded                ├→ failed                ├→ input_required ─→ running (on user.continue)                └→ auth_required  ─→ running (on user.auth_grant)     (any non-terminal) → canceled (explicit close)                         → timeout  (reaper)                         → rejected (agent_busy / explicit refuse) ``` 
+    Canonical task lifecycle status. Aligned with Google A2A v1.0 + BeeOS extensions per ADR-0017 D2. Internal `msgderive.TaskStatus` names map 1:1 onto these wire values.  Non-terminal: `queued`, `running`, `input_required`, `auth_required`. Terminal: `completed`, `failed`, `canceled`, `timeout`, `rejected`.  State transitions: ``` queued → running → completed                ├→ failed                ├→ input_required ─→ running (on user.continue)                └→ auth_required  ─→ running (on user.auth_grant)     (any non-terminal) → canceled (explicit close)                         → timeout  (reaper)                         → rejected (agent_busy / explicit refuse) ``` 
     """
 
     """
@@ -30,7 +30,7 @@ class TaskStatus(str, Enum):
     RUNNING = 'running'
     INPUT_REQUIRED = 'input_required'
     AUTH_REQUIRED = 'auth_required'
-    SUCCEEDED = 'succeeded'
+    COMPLETED = 'completed'
     FAILED = 'failed'
     CANCELED = 'canceled'
     TIMEOUT = 'timeout'

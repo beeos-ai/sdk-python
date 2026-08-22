@@ -34,8 +34,8 @@ class ErrorResponse(BaseModel):
     @field_validator('success')
     def success_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['false']):
-            raise ValueError("must be one of enum values ('false')")
+        if value is not False:
+            raise ValueError("must be false")
         return value
 
     model_config = ConfigDict(

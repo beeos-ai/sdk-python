@@ -34,8 +34,8 @@ class PresignFileUpload200Response(BaseModel):
     @field_validator('success')
     def success_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['true']):
-            raise ValueError("must be one of enum values ('true')")
+        if value is not True:
+            raise ValueError("must be true")
         return value
 
     model_config = ConfigDict(

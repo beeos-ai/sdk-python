@@ -40,7 +40,18 @@ jobs:
           python -m venv .venv-smoke
           .venv-smoke/bin/python -m pip install dist/*.whl
           cd /tmp
-          "${GITHUB_WORKSPACE}/packages/beeos/.venv-smoke/bin/python" -c "import beeos; print(beeos.__version__, beeos.sdk.__version__)"
+          "${GITHUB_WORKSPACE}/packages/beeos/.venv-smoke/bin/python" - <<'PY'
+          import beeos
+
+          assert tuple(map(int, beeos.sdk.__version__.split("."))) >= (0, 6, 2)
+          response = beeos.sdk.AgentListResponse.from_dict({
+              "success": True,
+              "data": [],
+              "total": 0,
+          })
+          assert response.success is True
+          print(beeos.__version__, beeos.sdk.__version__)
+          PY
 
       - uses: actions/upload-artifact@v4
         with:

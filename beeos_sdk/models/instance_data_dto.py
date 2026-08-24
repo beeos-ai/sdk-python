@@ -18,7 +18,7 @@ import re  # noqa: F401
 import json
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -62,12 +62,24 @@ class InstanceDataDTO(BaseModel):
     stopped_at: Optional[datetime] = Field(default=None, alias="stoppedAt")
     status_entered_at: Optional[datetime] = Field(default=None, alias="statusEnteredAt")
     connectivity_updated_at: Optional[datetime] = Field(default=None, alias="connectivityUpdatedAt")
+    ms_connection_status: Optional[StrictStr] = Field(default=None, description="Independent MessageClient/Centrifugo connection reported by the current Runtime. One of `unknown` | `connecting` | `connected` | `reconnecting` | `disconnected` | `failed`. Cluster returns `unknown` when the Runtime lease is missing, expired, or the instance is stopped/terminated. This does not replace `connectivity`. ", alias="msConnectionStatus")
+    ms_connection_updated_at: Optional[datetime] = Field(default=None, alias="msConnectionUpdatedAt")
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
     screenshot_url: Optional[StrictStr] = Field(default=None, alias="screenshotUrl")
     screenshot_updated_at: Optional[datetime] = Field(default=None, alias="screenshotUpdatedAt")
     capabilities: Optional[Dict[str, Any]] = Field(default=None, description="Frozen capability declaration snapshot (raw JSON object, nullable). Byte-for-byte passthrough of the stored `capabilities_json` (proto `InstanceData` field 98). Omitted entirely when the instance has no declared capabilities (pre-migration rows / no matching billing template) rather than emitted as `null`. Mirrors the same field on the main Gateway DTO (services/gateway/internal/dto/instance_data.go).  Note: this is the **instance-level** capability JSON object and is semantically distinct from `DeviceInfoDTO.capabilities` (a string array of device hardware / Agent-reported capabilities returned by `GET /api/v1/instances/{id}/device/info`). ")
-    __properties: ClassVar[List[str]] = ["id", "ownerId", "agentFramework", "providerId", "externalId", "osType", "hostingType", "cloudProvider", "name", "modelPrimary", "models", "status", "desiredStatus", "endpoint", "bridgeId", "identityId", "totalRunSeconds", "connectivity", "connectivityReason", "haltReason", "providerConfig", "publicIp", "clusterId", "region", "imageId", "imageRef", "isTrial", "expiresAt", "errorMessage", "systemPrompt", "mcpServers", "startedAt", "stoppedAt", "statusEnteredAt", "connectivityUpdatedAt", "createdAt", "updatedAt", "screenshotUrl", "screenshotUpdatedAt", "capabilities"]
+    __properties: ClassVar[List[str]] = ["id", "ownerId", "agentFramework", "providerId", "externalId", "osType", "hostingType", "cloudProvider", "name", "modelPrimary", "models", "status", "desiredStatus", "endpoint", "bridgeId", "identityId", "totalRunSeconds", "connectivity", "connectivityReason", "haltReason", "providerConfig", "publicIp", "clusterId", "region", "imageId", "imageRef", "isTrial", "expiresAt", "errorMessage", "systemPrompt", "mcpServers", "startedAt", "stoppedAt", "statusEnteredAt", "connectivityUpdatedAt", "msConnectionStatus", "msConnectionUpdatedAt", "createdAt", "updatedAt", "screenshotUrl", "screenshotUpdatedAt", "capabilities"]
+
+    @field_validator('ms_connection_status')
+    def ms_connection_status_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['unknown', 'connecting', 'connected', 'reconnecting', 'disconnected', 'failed']):
+            raise ValueError("must be one of enum values ('unknown', 'connecting', 'connected', 'reconnecting', 'disconnected', 'failed')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -155,6 +167,8 @@ class InstanceDataDTO(BaseModel):
             "stoppedAt": obj.get("stoppedAt"),
             "statusEnteredAt": obj.get("statusEnteredAt"),
             "connectivityUpdatedAt": obj.get("connectivityUpdatedAt"),
+            "msConnectionStatus": obj.get("msConnectionStatus"),
+            "msConnectionUpdatedAt": obj.get("msConnectionUpdatedAt"),
             "createdAt": obj.get("createdAt"),
             "updatedAt": obj.get("updatedAt"),
             "screenshotUrl": obj.get("screenshotUrl"),

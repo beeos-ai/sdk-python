@@ -3,7 +3,7 @@
 """
     BeeOS OpenAPI (user contract)
 
-    The **BeeOS OpenAPI** user contract. The sole implementer is **[`services/openapi-gateway`](../services/openapi-gateway)** (`openapi-gw`, local `:8095`). SDKs (Go / TypeScript) published under [`sdks/beeos-ai-sdk-go`](../../sdks/beeos-ai-sdk-go) and [`sdks/beeos-ai-sdk`](../../sdks/beeos-ai-sdk) are generated directly from this document.  The main user Gateway (`services/gateway`, `:9080`) serves web / mobile / desktop clients and is **not** described by this document. It maintains its own route set independent of the SDK contract.  **Auth:** every operation requires either a user **JWT** or a **`oag_`** User API Key, both on `Authorization: Bearer`. Agent-level protocol endpoints (A2A JSON-RPC with `bak_`, MCP) live in [beeos-agent-integration-v1.yaml](beeos-agent-integration-v1.yaml) and are hosted by A2A Gateway / MCP Gateway — not by `openapi-gateway`.  ## Changelog  ### 1.1.0 (ADR-0022 — dual-layer message storage)  BREAKING for clients that depended on full streaming chunk replay via the persistent message log:  * `GET /api/v1/agents/{agentId}/conversations/{convId}/messages`   and `GET /api/v1/agents/{agentId}/tasks/{taskId}/messages` now   **default-filter out** ephemeral streaming chunks   (`agent_reply_delta`, `agent_thought_chunk`,   `agent_message_chunk`). Add `?include_deltas=true` to opt back in. * `latest_offset` continues to reflect the TRUE server-side max   offset across both filtered and unfiltered rows, so `since=` /   cursor-style pagination is unaffected. * SSE `/events` is **NOT** affected — live consumers continue to   receive every envelope as it happens. * Backwards-compatible recovery path: SSE `/events` may now emit   a `backfill_truncated` event frame when the client reconnects   with `Last-Event-ID` before the oldest retained chunk. SDKs   that don't recognise the frame should treat it as a hint to   resume from `oldest_redis_offset` instead (the field carrying   the smallest offset still readable on the per-channel stream). * **Clarified contract**: SSE event `offset` is strictly monotonic   per channel but **NOT guaranteed contiguous** (ADR-0022 §1.2).   Producer-side write failures may leave small holes; clients MUST   use `offset > since`, never `offset == since + 1`.  BREAKING for clients that depended on the `oag_` API key scope vocabulary:  * The per-route scope gate (`agents:read`, `agents:write`,   `tasks:read`, `tasks:write`, `files:read`, `files:write`,   `instances:read`, `instances:write`, plus the `admin:*` wildcard)   has been **removed entirely**. The 37 routes that previously   required scopes are now governed exclusively by owner-ACL — an   `oag_` User API Key inherits full access to its owner's resources. * The `403 insufficient_scope` error code is no longer emitted.   Existing callers that branched on it should fold the case into   their generic 403 / `forbidden` handler. * SDK clients that explicitly passed `scopes` to `createAPIKey`   should drop that argument. The Web / Desktop UIs no longer render   scope badges on existing keys. * Existing `oag_` keys continue to work unchanged — the owner_id   binding is preserved, and no key needs to be re-issued.  BREAKING for clients of `GET /api/v1/providers` that read the `capabilities` object on the wire:  * 7 of the 8 `capabilities` field names are now **camelCase**   (`longRunning`, `browserUse`, `codeExec`, `fileSystem`,   `customImage`, `maxDurationSec`, `costModel`) — matching this   OpenAPI contract. Previous wire emitted **snake_case**   (`long_running`, `browser_use`, …) because the server DTO bound   `capabilities` to the raw protobuf message   (`*pb.ProviderCapabilities`) whose auto-generated `json` tags   use snake_case. SDK consumers (`@beeos-ai/sdk`,   `github.com/beeos-ai/sdk-go`) generated from this spec were   **already unable** to read any `capabilities` field — the   camelCase property names produced by the generator never   matched the snake_case the server actually sent. Raw HTTP   callers that hand-coded against the old snake_case names must   migrate; SDK callers gain access to the field set for the first   time without code changes. * Note: the `device` boolean was always a single word — its wire   name (`device`) is unchanged. Only the seven multi-word   capability fields are affected by the rename. * `meta`, `id`, `name`, `description`, `version` are unchanged. * A new drift-guard (`internal/dto/contract_test.go`) now locks   the server DTO to the spec property names, so the two cannot   silently diverge again.  ### 1.0.0  Initial OpenAPI contract (ADR-001). 
+    The **BeeOS OpenAPI** user contract. The sole implementer is **[`services/openapi-gateway`](../services/openapi-gateway)** (`openapi-gw`, local `:8095`). SDKs (Go / TypeScript) published under [`sdks/beeos-ai-sdk-go`](../../sdks/beeos-ai-sdk-go) and [`sdks/beeos-ai-sdk`](../../sdks/beeos-ai-sdk) are generated directly from this document.  The main user Gateway (`services/gateway`, `:9080`) serves web / mobile / desktop clients and is **not** described by this document. It maintains its own route set independent of the SDK contract.  **Auth:** every operation requires either a user **JWT** or a **`oag_`** User API Key, both on `Authorization: Bearer`. Agent-level protocol endpoints (A2A JSON-RPC with `bak_`, MCP) live in [beeos-agent-integration-v1.yaml](beeos-agent-integration-v1.yaml) and are hosted by A2A Gateway / MCP Gateway — not by `openapi-gateway`.  ## Changelog  ### 1.1.0 (ADR-0022 — dual-layer message storage)  BREAKING for clients that depended on full streaming chunk replay via the persistent message log:  * `GET /api/v1/agents/{agentId}/conversations/{convId}/messages`   and `GET /api/v1/agents/{agentId}/tasks/{taskId}/messages` now   **default-filter out** ephemeral streaming chunks   (`agent_reply_delta`, `agent_thought_chunk`,   `agent_message_chunk`). Add `?include_deltas=true` to opt back in. * `latest_offset` continues to reflect the TRUE server-side max   offset across both filtered and unfiltered rows, so `since=` /   cursor-style pagination is unaffected. * SSE `/events` is **NOT** affected — live consumers continue to   receive every envelope as it happens. * Backwards-compatible recovery path: SSE `/events` may now emit   a `backfill_truncated` event frame when the client reconnects   with `Last-Event-ID` before the oldest retained chunk. SDKs   that don't recognise the frame should treat it as a hint to   resume from `oldest_redis_offset` instead (the field carrying   the smallest offset still readable on the per-channel stream). * **Clarified contract**: SSE event `offset` is strictly monotonic   per channel but **NOT guaranteed contiguous** (ADR-0022 §1.2).   Producer-side write failures may leave small holes; clients MUST   use `offset > since`, never `offset == since + 1`.  BREAKING for clients that depended on the `oag_` API key scope vocabulary:  * The per-route scope gate (`agents:read`, `agents:write`,   `tasks:read`, `tasks:write`, `files:read`, `files:write`,   `instances:read`, `instances:write`, plus the `admin:*` wildcard)   has been **removed entirely**. The 37 routes that previously   required scopes are now governed exclusively by owner-ACL — an   `oag_` User API Key inherits full access to its owner's resources. * The `403 insufficient_scope` error code is no longer emitted.   Existing callers that branched on it should fold the case into   their generic 403 / `forbidden` handler. * SDK clients that explicitly passed `scopes` to `createAPIKey`   should drop that argument. The Web / Desktop UIs no longer render   scope badges on existing keys. * Existing `oag_` keys continue to work unchanged — the owner_id   binding is preserved, and no key needs to be re-issued.  BREAKING for clients of `GET /api/v1/providers` that read the `capabilities` object on the wire:  * 7 of the 8 `capabilities` field names are now **camelCase**   (`longRunning`, `browserUse`, `codeExec`, `fileSystem`,   `customImage`, `maxDurationSec`, `costModel`) — matching this   OpenAPI contract. Previous wire emitted **snake_case**   (`long_running`, `browser_use`, …) because the server DTO bound   `capabilities` to the raw protobuf message   (`*pb.ProviderCapabilities`) whose auto-generated `json` tags   use snake_case. SDK consumers (`@beeos-ai/sdk`,   `github.com/beeos-ai/sdk-go`) generated from this spec were   **already unable** to read any `capabilities` field — the   camelCase property names produced by the generator never   matched the snake_case the server actually sent. Raw HTTP   callers that hand-coded against the old snake_case names must   migrate; SDK callers gain access to the field set for the first   time without code changes. * Note: the `device` boolean was always a single word — its wire   name (`device`) is unchanged. Only the seven multi-word   capability fields are affected by the rename. * `meta`, `id`, `name`, `description`, `version` are unchanged. * A new drift-guard (`internal/dto/contract_test.go`) now locks   the server DTO to the spec property names, so the two cannot   silently diverge again.  ### 1.0.0  Initial OpenAPI contract (ADR-001).
 
     The version of the OpenAPI document: 1.1.0
     Generated by OpenAPI Generator (https://openapi-generator.tech)
@@ -16,12 +16,18 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field
+from pydantic import Field, StrictBool, StrictStr, field_validator
+from typing import Optional
 from typing_extensions import Annotated
 from beeos_sdk.models.computer_screenshot200_response import ComputerScreenshot200Response
+from beeos_sdk.models.drag_request import DragRequest
 from beeos_sdk.models.get_computer_info200_response import GetComputerInfo200Response
 from beeos_sdk.models.inline_object import InlineObject
 from beeos_sdk.models.key_request import KeyRequest
+from beeos_sdk.models.long_press_request import LongPressRequest
+from beeos_sdk.models.mobile_get_ui_tree200_response import MobileGetUiTree200Response
+from beeos_sdk.models.mobile_list_apps200_response import MobileListApps200Response
+from beeos_sdk.models.open_app_request import OpenAppRequest
 from beeos_sdk.models.press_button_request import PressButtonRequest
 from beeos_sdk.models.scroll_request import ScrollRequest
 from beeos_sdk.models.swipe_request import SwipeRequest
@@ -65,7 +71,7 @@ class MobileApi:
     ) -> GetComputerInfo200Response:
         """Live mobile control info (geometry + supported actions).
 
-        Returns the android instance's online status, screen geometry, supported actions, and foreground app. Returns 404 if the instance is a desktop device (use the `computer` endpoints).  This is the synchronous **control plane**: `online` + `screen_*` reflect the *live* control-channel state at request time. For the device's **registration / static** metadata (BYOD device type, model, OS, registered geometry, hardware capabilities) — readable even when the device is offline — use `GET /api/v1/instances/{id}/device/info` (`DeviceInfoDTO`) instead. 
+        Returns the android instance's online status, screen geometry, supported actions, and foreground app. Returns 404 if the instance is a desktop device (use the `computer` endpoints).  This is the synchronous **control plane**: `online` + `screen_*` reflect the *live* control-channel state at request time. For the device's **registration / static** metadata (BYOD device type, model, OS, registered geometry, hardware capabilities) — readable even when the device is offline — use `GET /api/v1/instances/{id}/device/info` (`DeviceInfoDTO`) instead.
 
         :param id: (required)
         :type id: str
@@ -137,7 +143,7 @@ class MobileApi:
     ) -> ApiResponse[GetComputerInfo200Response]:
         """Live mobile control info (geometry + supported actions).
 
-        Returns the android instance's online status, screen geometry, supported actions, and foreground app. Returns 404 if the instance is a desktop device (use the `computer` endpoints).  This is the synchronous **control plane**: `online` + `screen_*` reflect the *live* control-channel state at request time. For the device's **registration / static** metadata (BYOD device type, model, OS, registered geometry, hardware capabilities) — readable even when the device is offline — use `GET /api/v1/instances/{id}/device/info` (`DeviceInfoDTO`) instead. 
+        Returns the android instance's online status, screen geometry, supported actions, and foreground app. Returns 404 if the instance is a desktop device (use the `computer` endpoints).  This is the synchronous **control plane**: `online` + `screen_*` reflect the *live* control-channel state at request time. For the device's **registration / static** metadata (BYOD device type, model, OS, registered geometry, hardware capabilities) — readable even when the device is offline — use `GET /api/v1/instances/{id}/device/info` (`DeviceInfoDTO`) instead.
 
         :param id: (required)
         :type id: str
@@ -209,7 +215,7 @@ class MobileApi:
     ) -> RESTResponseType:
         """Live mobile control info (geometry + supported actions).
 
-        Returns the android instance's online status, screen geometry, supported actions, and foreground app. Returns 404 if the instance is a desktop device (use the `computer` endpoints).  This is the synchronous **control plane**: `online` + `screen_*` reflect the *live* control-channel state at request time. For the device's **registration / static** metadata (BYOD device type, model, OS, registered geometry, hardware capabilities) — readable even when the device is offline — use `GET /api/v1/instances/{id}/device/info` (`DeviceInfoDTO`) instead. 
+        Returns the android instance's online status, screen geometry, supported actions, and foreground app. Returns 404 if the instance is a desktop device (use the `computer` endpoints).  This is the synchronous **control plane**: `online` + `screen_*` reflect the *live* control-channel state at request time. For the device's **registration / static** metadata (BYOD device type, model, OS, registered geometry, hardware capabilities) — readable even when the device is offline — use `GET /api/v1/instances/{id}/device/info` (`DeviceInfoDTO`) instead.
 
         :param id: (required)
         :type id: str
@@ -307,6 +313,930 @@ class MobileApi:
         return self.api_client.param_serialize(
             method='GET',
             resource_path='/api/v1/instances/{id}/mobile',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def mobile_double_tap(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        tap_request: TapRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> InlineObject:
+        """Double-tap at (x, y).
+
+
+        :param id: (required)
+        :type id: str
+        :param tap_request: (required)
+        :type tap_request: TapRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_double_tap_serialize(
+            id=id,
+            tap_request=tap_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "InlineObject",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '409': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def mobile_double_tap_with_http_info(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        tap_request: TapRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[InlineObject]:
+        """Double-tap at (x, y).
+
+
+        :param id: (required)
+        :type id: str
+        :param tap_request: (required)
+        :type tap_request: TapRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_double_tap_serialize(
+            id=id,
+            tap_request=tap_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "InlineObject",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '409': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def mobile_double_tap_without_preload_content(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        tap_request: TapRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Double-tap at (x, y).
+
+
+        :param id: (required)
+        :type id: str
+        :param tap_request: (required)
+        :type tap_request: TapRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_double_tap_serialize(
+            id=id,
+            tap_request=tap_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "InlineObject",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '409': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _mobile_double_tap_serialize(
+        self,
+        id,
+        tap_request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if id is not None:
+            _path_params['id'] = id
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if tap_request is not None:
+            _body_params = tap_request
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'bearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='POST',
+            resource_path='/api/v1/instances/{id}/mobile/double_tap',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def mobile_drag(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        drag_request: DragRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> InlineObject:
+        """Drag an object from (x1, y1) to (x2, y2).
+
+
+        :param id: (required)
+        :type id: str
+        :param drag_request: (required)
+        :type drag_request: DragRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_drag_serialize(
+            id=id,
+            drag_request=drag_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "InlineObject",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '409': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def mobile_drag_with_http_info(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        drag_request: DragRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[InlineObject]:
+        """Drag an object from (x1, y1) to (x2, y2).
+
+
+        :param id: (required)
+        :type id: str
+        :param drag_request: (required)
+        :type drag_request: DragRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_drag_serialize(
+            id=id,
+            drag_request=drag_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "InlineObject",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '409': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def mobile_drag_without_preload_content(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        drag_request: DragRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Drag an object from (x1, y1) to (x2, y2).
+
+
+        :param id: (required)
+        :type id: str
+        :param drag_request: (required)
+        :type drag_request: DragRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_drag_serialize(
+            id=id,
+            drag_request=drag_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "InlineObject",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '409': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _mobile_drag_serialize(
+        self,
+        id,
+        drag_request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if id is not None:
+            _path_params['id'] = id
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if drag_request is not None:
+            _body_params = drag_request
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'bearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='POST',
+            resource_path='/api/v1/instances/{id}/mobile/drag',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def mobile_get_ui_tree(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        query: Optional[StrictStr] = None,
+        format: Optional[StrictStr] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> MobileGetUiTree200Response:
+        """Read the current Android UI hierarchy.
+
+
+        :param id: (required)
+        :type id: str
+        :param query:
+        :type query: str
+        :param format:
+        :type format: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_get_ui_tree_serialize(
+            id=id,
+            query=query,
+            format=format,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "MobileGetUiTree200Response",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def mobile_get_ui_tree_with_http_info(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        query: Optional[StrictStr] = None,
+        format: Optional[StrictStr] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[MobileGetUiTree200Response]:
+        """Read the current Android UI hierarchy.
+
+
+        :param id: (required)
+        :type id: str
+        :param query:
+        :type query: str
+        :param format:
+        :type format: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_get_ui_tree_serialize(
+            id=id,
+            query=query,
+            format=format,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "MobileGetUiTree200Response",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def mobile_get_ui_tree_without_preload_content(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        query: Optional[StrictStr] = None,
+        format: Optional[StrictStr] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Read the current Android UI hierarchy.
+
+
+        :param id: (required)
+        :type id: str
+        :param query:
+        :type query: str
+        :param format:
+        :type format: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_get_ui_tree_serialize(
+            id=id,
+            query=query,
+            format=format,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "MobileGetUiTree200Response",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _mobile_get_ui_tree_serialize(
+        self,
+        id,
+        query,
+        format,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if id is not None:
+            _path_params['id'] = id
+        # process the query parameters
+        if query is not None:
+
+            _query_params.append(('query', query))
+
+        if format is not None:
+
+            _query_params.append(('format', format))
+
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'bearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='GET',
+            resource_path='/api/v1/instances/{id}/mobile/ui_tree',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -611,6 +1541,927 @@ class MobileApi:
         return self.api_client.param_serialize(
             method='POST',
             resource_path='/api/v1/instances/{id}/mobile/key',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def mobile_list_apps(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        include_system: Optional[StrictBool] = None,
+        launchable_only: Optional[StrictBool] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> MobileListApps200Response:
+        """List installed Android applications.
+
+
+        :param id: (required)
+        :type id: str
+        :param include_system:
+        :type include_system: bool
+        :param launchable_only:
+        :type launchable_only: bool
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_list_apps_serialize(
+            id=id,
+            include_system=include_system,
+            launchable_only=launchable_only,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "MobileListApps200Response",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def mobile_list_apps_with_http_info(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        include_system: Optional[StrictBool] = None,
+        launchable_only: Optional[StrictBool] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[MobileListApps200Response]:
+        """List installed Android applications.
+
+
+        :param id: (required)
+        :type id: str
+        :param include_system:
+        :type include_system: bool
+        :param launchable_only:
+        :type launchable_only: bool
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_list_apps_serialize(
+            id=id,
+            include_system=include_system,
+            launchable_only=launchable_only,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "MobileListApps200Response",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def mobile_list_apps_without_preload_content(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        include_system: Optional[StrictBool] = None,
+        launchable_only: Optional[StrictBool] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """List installed Android applications.
+
+
+        :param id: (required)
+        :type id: str
+        :param include_system:
+        :type include_system: bool
+        :param launchable_only:
+        :type launchable_only: bool
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_list_apps_serialize(
+            id=id,
+            include_system=include_system,
+            launchable_only=launchable_only,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "MobileListApps200Response",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _mobile_list_apps_serialize(
+        self,
+        id,
+        include_system,
+        launchable_only,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if id is not None:
+            _path_params['id'] = id
+        # process the query parameters
+        if include_system is not None:
+
+            _query_params.append(('include_system', include_system))
+
+        if launchable_only is not None:
+
+            _query_params.append(('launchable_only', launchable_only))
+
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'bearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='GET',
+            resource_path='/api/v1/instances/{id}/mobile/apps',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def mobile_long_press(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        long_press_request: LongPressRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> InlineObject:
+        """Long-press at (x, y).
+
+
+        :param id: (required)
+        :type id: str
+        :param long_press_request: (required)
+        :type long_press_request: LongPressRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_long_press_serialize(
+            id=id,
+            long_press_request=long_press_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "InlineObject",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '409': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def mobile_long_press_with_http_info(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        long_press_request: LongPressRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[InlineObject]:
+        """Long-press at (x, y).
+
+
+        :param id: (required)
+        :type id: str
+        :param long_press_request: (required)
+        :type long_press_request: LongPressRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_long_press_serialize(
+            id=id,
+            long_press_request=long_press_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "InlineObject",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '409': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def mobile_long_press_without_preload_content(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        long_press_request: LongPressRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Long-press at (x, y).
+
+
+        :param id: (required)
+        :type id: str
+        :param long_press_request: (required)
+        :type long_press_request: LongPressRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_long_press_serialize(
+            id=id,
+            long_press_request=long_press_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "InlineObject",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '409': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _mobile_long_press_serialize(
+        self,
+        id,
+        long_press_request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if id is not None:
+            _path_params['id'] = id
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if long_press_request is not None:
+            _body_params = long_press_request
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'bearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='POST',
+            resource_path='/api/v1/instances/{id}/mobile/long_press',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def mobile_open_app(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        open_app_request: OpenAppRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> InlineObject:
+        """Open an installed app by package id or display name.
+
+
+        :param id: (required)
+        :type id: str
+        :param open_app_request: (required)
+        :type open_app_request: OpenAppRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_open_app_serialize(
+            id=id,
+            open_app_request=open_app_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "InlineObject",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '409': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def mobile_open_app_with_http_info(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        open_app_request: OpenAppRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[InlineObject]:
+        """Open an installed app by package id or display name.
+
+
+        :param id: (required)
+        :type id: str
+        :param open_app_request: (required)
+        :type open_app_request: OpenAppRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_open_app_serialize(
+            id=id,
+            open_app_request=open_app_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "InlineObject",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '409': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def mobile_open_app_without_preload_content(
+        self,
+        id: Annotated[str, Field(strict=True, max_length=128)],
+        open_app_request: OpenAppRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Open an installed app by package id or display name.
+
+
+        :param id: (required)
+        :type id: str
+        :param open_app_request: (required)
+        :type open_app_request: OpenAppRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._mobile_open_app_serialize(
+            id=id,
+            open_app_request=open_app_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "InlineObject",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+            '404': "ErrorResponse",
+            '409': "ErrorResponse",
+            '429': "ErrorResponse",
+            '503': "ErrorResponse",
+            '5XX': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _mobile_open_app_serialize(
+        self,
+        id,
+        open_app_request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if id is not None:
+            _path_params['id'] = id
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if open_app_request is not None:
+            _body_params = open_app_request
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'bearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='POST',
+            resource_path='/api/v1/instances/{id}/mobile/open_app',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

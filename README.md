@@ -37,6 +37,24 @@ Authentication uses `Authorization: Bearer <jwt>` or
 `Authorization: Bearer <oag_user_api_key>` through the generated
 `Configuration`.
 
+For phone automation across Device Agent, BeeRunner, and Redroid:
+
+```python
+from beeos_sdk import MobileClient
+
+with MobileClient(
+    api_key="oag_your_api_key",
+    agent_id="agent-id",
+    instance_id="instance-id",
+) as mobile:
+    mobile.wait_ready()
+    result = mobile.run("Open Settings")
+```
+
+`mobile.mobile` exposes the generated atomic-control API. BeeRunner uses the
+durable task methods and does not advertise atomic control until a trusted
+Portal adapter exists.
+
 ## Regenerate
 
 Maintainers regenerate this repository from the `openagent` workspace:

@@ -22,6 +22,8 @@ beeos_sdk/models/agent_capabilities_dto.py
 beeos_sdk/models/agent_dto.py
 beeos_sdk/models/agent_list_response.py
 beeos_sdk/models/agent_response.py
+beeos_sdk/models/app_info.py
+beeos_sdk/models/app_list_result.py
 beeos_sdk/models/attachment_ref.py
 beeos_sdk/models/cancel_conversation202_response.py
 beeos_sdk/models/cancel_conversation202_response_data.py
@@ -45,6 +47,7 @@ beeos_sdk/models/deploy_models_list_response.py
 beeos_sdk/models/deploy_region_item.py
 beeos_sdk/models/deploy_regions_list_response.py
 beeos_sdk/models/device_info_dto.py
+beeos_sdk/models/drag_request.py
 beeos_sdk/models/error.py
 beeos_sdk/models/error_response.py
 beeos_sdk/models/file_meta_response.py
@@ -76,10 +79,14 @@ beeos_sdk/models/list_tasks_response.py
 beeos_sdk/models/list_tasks_response_all_of_data.py
 beeos_sdk/models/list_webhook_deliveries_response.py
 beeos_sdk/models/list_webhook_deliveries_response_all_of_data.py
+beeos_sdk/models/long_press_request.py
 beeos_sdk/models/message_dto.py
 beeos_sdk/models/message_envelope.py
 beeos_sdk/models/message_state.py
+beeos_sdk/models/mobile_get_ui_tree200_response.py
+beeos_sdk/models/mobile_list_apps200_response.py
 beeos_sdk/models/move_request.py
+beeos_sdk/models/open_app_request.py
 beeos_sdk/models/part.py
 beeos_sdk/models/part_custom.py
 beeos_sdk/models/part_file.py
@@ -144,6 +151,7 @@ beeos_sdk/models/task_summary.py
 beeos_sdk/models/task_webhook_response.py
 beeos_sdk/models/task_webhook_response_all_of_data.py
 beeos_sdk/models/type_request.py
+beeos_sdk/models/ui_tree_result.py
 beeos_sdk/models/update_agent_request.py
 beeos_sdk/models/webhook_delivery_response.py
 beeos_sdk/py.typed

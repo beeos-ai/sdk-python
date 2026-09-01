@@ -5,7 +5,7 @@
 """
     BeeOS OpenAPI (user contract)
 
-    The **BeeOS OpenAPI** user contract. The sole implementer is **[`services/openapi-gateway`](../services/openapi-gateway)** (`openapi-gw`, local `:8095`). SDKs (Go / TypeScript) published under [`sdks/beeos-ai-sdk-go`](../../sdks/beeos-ai-sdk-go) and [`sdks/beeos-ai-sdk`](../../sdks/beeos-ai-sdk) are generated directly from this document.  The main user Gateway (`services/gateway`, `:9080`) serves web / mobile / desktop clients and is **not** described by this document. It maintains its own route set independent of the SDK contract.  **Auth:** every operation requires either a user **JWT** or a **`oag_`** User API Key, both on `Authorization: Bearer`. Agent-level protocol endpoints (A2A JSON-RPC with `bak_`, MCP) live in [beeos-agent-integration-v1.yaml](beeos-agent-integration-v1.yaml) and are hosted by A2A Gateway / MCP Gateway — not by `openapi-gateway`.  ## Changelog  ### 1.1.0 (ADR-0022 — dual-layer message storage)  BREAKING for clients that depended on full streaming chunk replay via the persistent message log:  * `GET /api/v1/agents/{agentId}/conversations/{convId}/messages`   and `GET /api/v1/agents/{agentId}/tasks/{taskId}/messages` now   **default-filter out** ephemeral streaming chunks   (`agent_reply_delta`, `agent_thought_chunk`,   `agent_message_chunk`). Add `?include_deltas=true` to opt back in. * `latest_offset` continues to reflect the TRUE server-side max   offset across both filtered and unfiltered rows, so `since=` /   cursor-style pagination is unaffected. * SSE `/events` is **NOT** affected — live consumers continue to   receive every envelope as it happens. * Backwards-compatible recovery path: SSE `/events` may now emit   a `backfill_truncated` event frame when the client reconnects   with `Last-Event-ID` before the oldest retained chunk. SDKs   that don't recognise the frame should treat it as a hint to   resume from `oldest_redis_offset` instead (the field carrying   the smallest offset still readable on the per-channel stream). * **Clarified contract**: SSE event `offset` is strictly monotonic   per channel but **NOT guaranteed contiguous** (ADR-0022 §1.2).   Producer-side write failures may leave small holes; clients MUST   use `offset > since`, never `offset == since + 1`.  BREAKING for clients that depended on the `oag_` API key scope vocabulary:  * The per-route scope gate (`agents:read`, `agents:write`,   `tasks:read`, `tasks:write`, `files:read`, `files:write`,   `instances:read`, `instances:write`, plus the `admin:*` wildcard)   has been **removed entirely**. The 37 routes that previously   required scopes are now governed exclusively by owner-ACL — an   `oag_` User API Key inherits full access to its owner's resources. * The `403 insufficient_scope` error code is no longer emitted.   Existing callers that branched on it should fold the case into   their generic 403 / `forbidden` handler. * SDK clients that explicitly passed `scopes` to `createAPIKey`   should drop that argument. The Web / Desktop UIs no longer render   scope badges on existing keys. * Existing `oag_` keys continue to work unchanged — the owner_id   binding is preserved, and no key needs to be re-issued.  BREAKING for clients of `GET /api/v1/providers` that read the `capabilities` object on the wire:  * 7 of the 8 `capabilities` field names are now **camelCase**   (`longRunning`, `browserUse`, `codeExec`, `fileSystem`,   `customImage`, `maxDurationSec`, `costModel`) — matching this   OpenAPI contract. Previous wire emitted **snake_case**   (`long_running`, `browser_use`, …) because the server DTO bound   `capabilities` to the raw protobuf message   (`*pb.ProviderCapabilities`) whose auto-generated `json` tags   use snake_case. SDK consumers (`@beeos-ai/sdk`,   `github.com/beeos-ai/sdk-go`) generated from this spec were   **already unable** to read any `capabilities` field — the   camelCase property names produced by the generator never   matched the snake_case the server actually sent. Raw HTTP   callers that hand-coded against the old snake_case names must   migrate; SDK callers gain access to the field set for the first   time without code changes. * Note: the `device` boolean was always a single word — its wire   name (`device`) is unchanged. Only the seven multi-word   capability fields are affected by the rename. * `meta`, `id`, `name`, `description`, `version` are unchanged. * A new drift-guard (`internal/dto/contract_test.go`) now locks   the server DTO to the spec property names, so the two cannot   silently diverge again.  ### 1.0.0  Initial OpenAPI contract (ADR-001). 
+    The **BeeOS OpenAPI** user contract. The sole implementer is **[`services/openapi-gateway`](../services/openapi-gateway)** (`openapi-gw`, local `:8095`). SDKs (Go / TypeScript) published under [`sdks/beeos-ai-sdk-go`](../../sdks/beeos-ai-sdk-go) and [`sdks/beeos-ai-sdk`](../../sdks/beeos-ai-sdk) are generated directly from this document.  The main user Gateway (`services/gateway`, `:9080`) serves web / mobile / desktop clients and is **not** described by this document. It maintains its own route set independent of the SDK contract.  **Auth:** every operation requires either a user **JWT** or a **`oag_`** User API Key, both on `Authorization: Bearer`. Agent-level protocol endpoints (A2A JSON-RPC with `bak_`, MCP) live in [beeos-agent-integration-v1.yaml](beeos-agent-integration-v1.yaml) and are hosted by A2A Gateway / MCP Gateway — not by `openapi-gateway`.  ## Changelog  ### 1.1.0 (ADR-0022 — dual-layer message storage)  BREAKING for clients that depended on full streaming chunk replay via the persistent message log:  * `GET /api/v1/agents/{agentId}/conversations/{convId}/messages`   and `GET /api/v1/agents/{agentId}/tasks/{taskId}/messages` now   **default-filter out** ephemeral streaming chunks   (`agent_reply_delta`, `agent_thought_chunk`,   `agent_message_chunk`). Add `?include_deltas=true` to opt back in. * `latest_offset` continues to reflect the TRUE server-side max   offset across both filtered and unfiltered rows, so `since=` /   cursor-style pagination is unaffected. * SSE `/events` is **NOT** affected — live consumers continue to   receive every envelope as it happens. * Backwards-compatible recovery path: SSE `/events` may now emit   a `backfill_truncated` event frame when the client reconnects   with `Last-Event-ID` before the oldest retained chunk. SDKs   that don't recognise the frame should treat it as a hint to   resume from `oldest_redis_offset` instead (the field carrying   the smallest offset still readable on the per-channel stream). * **Clarified contract**: SSE event `offset` is strictly monotonic   per channel but **NOT guaranteed contiguous** (ADR-0022 §1.2).   Producer-side write failures may leave small holes; clients MUST   use `offset > since`, never `offset == since + 1`.  BREAKING for clients that depended on the `oag_` API key scope vocabulary:  * The per-route scope gate (`agents:read`, `agents:write`,   `tasks:read`, `tasks:write`, `files:read`, `files:write`,   `instances:read`, `instances:write`, plus the `admin:*` wildcard)   has been **removed entirely**. The 37 routes that previously   required scopes are now governed exclusively by owner-ACL — an   `oag_` User API Key inherits full access to its owner's resources. * The `403 insufficient_scope` error code is no longer emitted.   Existing callers that branched on it should fold the case into   their generic 403 / `forbidden` handler. * SDK clients that explicitly passed `scopes` to `createAPIKey`   should drop that argument. The Web / Desktop UIs no longer render   scope badges on existing keys. * Existing `oag_` keys continue to work unchanged — the owner_id   binding is preserved, and no key needs to be re-issued.  BREAKING for clients of `GET /api/v1/providers` that read the `capabilities` object on the wire:  * 7 of the 8 `capabilities` field names are now **camelCase**   (`longRunning`, `browserUse`, `codeExec`, `fileSystem`,   `customImage`, `maxDurationSec`, `costModel`) — matching this   OpenAPI contract. Previous wire emitted **snake_case**   (`long_running`, `browser_use`, …) because the server DTO bound   `capabilities` to the raw protobuf message   (`*pb.ProviderCapabilities`) whose auto-generated `json` tags   use snake_case. SDK consumers (`@beeos-ai/sdk`,   `github.com/beeos-ai/sdk-go`) generated from this spec were   **already unable** to read any `capabilities` field — the   camelCase property names produced by the generator never   matched the snake_case the server actually sent. Raw HTTP   callers that hand-coded against the old snake_case names must   migrate; SDK callers gain access to the field set for the first   time without code changes. * Note: the `device` boolean was always a single word — its wire   name (`device`) is unchanged. Only the seven multi-word   capability fields are affected by the rename. * `meta`, `id`, `name`, `description`, `version` are unchanged. * A new drift-guard (`internal/dto/contract_test.go`) now locks   the server DTO to the spec property names, so the two cannot   silently diverge again.  ### 1.0.0  Initial OpenAPI contract (ADR-001).
 
     The version of the OpenAPI document: 1.1.0
     Generated by OpenAPI Generator (https://openapi-generator.tech)
@@ -26,6 +26,7 @@ __all__ = [
     "FilesApi",
     "InstancesApi",
     "MobileApi",
+    "MobileClient",
     "TasksApi",
     "ApiResponse",
     "ApiClient",
@@ -41,6 +42,8 @@ __all__ = [
     "AgentDTO",
     "AgentListResponse",
     "AgentResponse",
+    "AppInfo",
+    "AppListResult",
     "AttachmentRef",
     "CancelConversation202Response",
     "CancelConversation202ResponseData",
@@ -64,6 +67,7 @@ __all__ = [
     "DeployRegionItem",
     "DeployRegionsListResponse",
     "DeviceInfoDTO",
+    "DragRequest",
     "Error",
     "ErrorResponse",
     "FileMetaResponse",
@@ -95,10 +99,14 @@ __all__ = [
     "ListTasksResponseAllOfData",
     "ListWebhookDeliveriesResponse",
     "ListWebhookDeliveriesResponseAllOfData",
+    "LongPressRequest",
     "MessageDTO",
     "MessageEnvelope",
     "MessageState",
+    "MobileGetUiTree200Response",
+    "MobileListApps200Response",
     "MoveRequest",
+    "OpenAppRequest",
     "Part",
     "PartCustom",
     "PartFile",
@@ -163,6 +171,7 @@ __all__ = [
     "TaskWebhookResponse",
     "TaskWebhookResponseAllOfData",
     "TypeRequest",
+    "UITreeResult",
     "UpdateAgentRequest",
     "WebhookDeliveryResponse",
 ]
@@ -180,6 +189,7 @@ from beeos_sdk.api.tasks_api import TasksApi as TasksApi
 
 # import ApiClient
 from beeos_sdk.api_response import ApiResponse as ApiResponse
+from beeos_sdk.mobile import MobileClient as MobileClient
 from beeos_sdk.api_client import ApiClient as ApiClient
 from beeos_sdk.configuration import Configuration as Configuration
 from beeos_sdk.exceptions import OpenApiException as OpenApiException
@@ -195,6 +205,8 @@ from beeos_sdk.models.agent_capabilities_dto import AgentCapabilitiesDTO as Agen
 from beeos_sdk.models.agent_dto import AgentDTO as AgentDTO
 from beeos_sdk.models.agent_list_response import AgentListResponse as AgentListResponse
 from beeos_sdk.models.agent_response import AgentResponse as AgentResponse
+from beeos_sdk.models.app_info import AppInfo as AppInfo
+from beeos_sdk.models.app_list_result import AppListResult as AppListResult
 from beeos_sdk.models.attachment_ref import AttachmentRef as AttachmentRef
 from beeos_sdk.models.cancel_conversation202_response import CancelConversation202Response as CancelConversation202Response
 from beeos_sdk.models.cancel_conversation202_response_data import CancelConversation202ResponseData as CancelConversation202ResponseData
@@ -218,6 +230,7 @@ from beeos_sdk.models.deploy_models_list_response import DeployModelsListRespons
 from beeos_sdk.models.deploy_region_item import DeployRegionItem as DeployRegionItem
 from beeos_sdk.models.deploy_regions_list_response import DeployRegionsListResponse as DeployRegionsListResponse
 from beeos_sdk.models.device_info_dto import DeviceInfoDTO as DeviceInfoDTO
+from beeos_sdk.models.drag_request import DragRequest as DragRequest
 from beeos_sdk.models.error import Error as Error
 from beeos_sdk.models.error_response import ErrorResponse as ErrorResponse
 from beeos_sdk.models.file_meta_response import FileMetaResponse as FileMetaResponse
@@ -249,10 +262,14 @@ from beeos_sdk.models.list_tasks_response import ListTasksResponse as ListTasksR
 from beeos_sdk.models.list_tasks_response_all_of_data import ListTasksResponseAllOfData as ListTasksResponseAllOfData
 from beeos_sdk.models.list_webhook_deliveries_response import ListWebhookDeliveriesResponse as ListWebhookDeliveriesResponse
 from beeos_sdk.models.list_webhook_deliveries_response_all_of_data import ListWebhookDeliveriesResponseAllOfData as ListWebhookDeliveriesResponseAllOfData
+from beeos_sdk.models.long_press_request import LongPressRequest as LongPressRequest
 from beeos_sdk.models.message_dto import MessageDTO as MessageDTO
 from beeos_sdk.models.message_envelope import MessageEnvelope as MessageEnvelope
 from beeos_sdk.models.message_state import MessageState as MessageState
+from beeos_sdk.models.mobile_get_ui_tree200_response import MobileGetUiTree200Response as MobileGetUiTree200Response
+from beeos_sdk.models.mobile_list_apps200_response import MobileListApps200Response as MobileListApps200Response
 from beeos_sdk.models.move_request import MoveRequest as MoveRequest
+from beeos_sdk.models.open_app_request import OpenAppRequest as OpenAppRequest
 from beeos_sdk.models.part import Part as Part
 from beeos_sdk.models.part_custom import PartCustom as PartCustom
 from beeos_sdk.models.part_file import PartFile as PartFile
@@ -317,5 +334,6 @@ from beeos_sdk.models.task_summary import TaskSummary as TaskSummary
 from beeos_sdk.models.task_webhook_response import TaskWebhookResponse as TaskWebhookResponse
 from beeos_sdk.models.task_webhook_response_all_of_data import TaskWebhookResponseAllOfData as TaskWebhookResponseAllOfData
 from beeos_sdk.models.type_request import TypeRequest as TypeRequest
+from beeos_sdk.models.ui_tree_result import UITreeResult as UITreeResult
 from beeos_sdk.models.update_agent_request import UpdateAgentRequest as UpdateAgentRequest
 from beeos_sdk.models.webhook_delivery_response import WebhookDeliveryResponse as WebhookDeliveryResponse

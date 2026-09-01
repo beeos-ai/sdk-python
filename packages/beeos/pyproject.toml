@@ -10,7 +10,7 @@ authors = [
 ]
 keywords = ["BeeOS", "agents", "OpenAPI", "SDK"]
 dependencies = [
-  "beeos-sdk>=0.6.2,<1.0.0",
+  "beeos-sdk>=0.7.0,<1.0.0",
 ]
 
 [project.urls]

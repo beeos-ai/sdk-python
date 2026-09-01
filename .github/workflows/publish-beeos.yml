@@ -43,7 +43,7 @@ jobs:
           "${GITHUB_WORKSPACE}/packages/beeos/.venv-smoke/bin/python" - <<'PY'
           import beeos
 
-          assert tuple(map(int, beeos.sdk.__version__.split("."))) >= (0, 6, 2)
+          assert tuple(map(int, beeos.sdk.__version__.split("."))) >= (0, 7, 0)
           response = beeos.sdk.AgentListResponse.from_dict({
               "success": True,
               "data": [],

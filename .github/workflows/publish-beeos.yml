@@ -44,6 +44,9 @@ jobs:
           import beeos
 
           assert tuple(map(int, beeos.sdk.__version__.split("."))) >= (0, 7, 0)
+          client = beeos.BeeOS(api_key="oag_smoke_test")
+          assert client.api_client.configuration.host == "https://openapi.beeos.ai"
+          client.close()
           response = beeos.sdk.AgentListResponse.from_dict({
               "success": True,
               "data": [],

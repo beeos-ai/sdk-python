@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e . pytest build twine
+      - run: python -m pip install -e . -e packages/beeos pytest build twine
       - run: pytest -q
       - run: python -m build
       - run: python -m twine check dist/*

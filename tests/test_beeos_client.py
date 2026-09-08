@@ -1,6 +1,16 @@
 from types import SimpleNamespace
 
 import pytest
+
+
+def test_facade_releases_owned_generated_connection_pool(monkeypatch):
+    from unittest.mock import Mock
+    from beeos import BeeOS
+    client = BeeOS(api_key="key")
+    clear = Mock()
+    monkeypatch.setattr(client.api_client.rest_client.pool_manager, "clear", clear)
+    client.close()
+    clear.assert_called_once()
 from beeos import BeeOS
 
 
@@ -45,10 +55,11 @@ def test_task_resource_builds_generated_request(monkeypatch):
     client = BeeOS(api_client=api_client)
     expected = SimpleNamespace(data=SimpleNamespace(task_id="task-1"))
 
-    def create_task(*, agent_id, create_task_request):
+    def create_task(*, agent_id, create_task_request, _request_timeout):
         assert agent_id == "agent-1"
         assert create_task_request.message == "Create a video"
         assert create_task_request.idempotency_key == "request-1"
+        assert _request_timeout == 30.0
         return expected
 
     monkeypatch.setattr(client.tasks._api, "create_task", create_task)

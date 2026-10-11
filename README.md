@@ -1,5 +1,7 @@
 # beeos-sdk
 
+> **Archived — use [`beeos-cloud-sdks`](https://github.com/beeos-ai/beeos-cloud-sdks) instead.** This package targeted the retired BeeOS OpenAPI gateway and is no longer maintained. The Python client is now `beeos-cloud-sdk` from `beeos-cloud-sdks`. Published `beeos-sdk` versions stay installable but receive no updates.
+
 Python client for the BeeOS OpenAPI contract served by
 [`openapi-gateway`](https://github.com/beeos-ai/openagent/tree/main/backend/services/openapi-gateway).
 
